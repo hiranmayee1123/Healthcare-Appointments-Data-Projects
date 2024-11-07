@@ -1,0 +1,61 @@
+# AWS S3 Configuration for Healthcare Appointments Data Storage
+
+bucket_config:
+  bucket_name: healthcare-appointments-data
+  region: us-east-1
+  versioning_enabled: true              # Enable to keep multiple versions of objects
+  encryption: AES256                    # Server-side encryption (AES256 or aws:kms)
+  block_public_access:
+    block_public_acls: true
+    ignore_public_acls: true
+    block_public_policy: true
+    restrict_public_buckets: true
+
+folders:
+  - name: raw_data
+    description: "Stores unprocessed raw data files."
+  - name: processed_data
+    description: "Stores transformed or cleaned data files."
+  - name: logs
+    description: "Contains logs related to data processing and access."
+
+lifecycle_policies:
+  - id: "Archive-old-data"
+    prefix: "raw_data/"
+    status: "Enabled"
+    transitions:
+      - days: 365                       # Transition to Glacier after 1 year
+        storage_class: "GLACIER"
+    expiration_days: 1825               # Expire after 5 years
+  - id: "Delete-old-logs"
+    prefix: "logs/"
+    status: "Enabled"
+    expiration_days: 365                # Expire logs after 1 year
+
+permissions:
+  bucket_policy:
+    statements:
+      - sid: "AllowLoggingAccess"
+        effect: "Allow"
+        principal: "*"
+        action:
+          - "s3:GetBucketAcl"
+          - "s3:PutBucketAcl"
+        resource: "arn:aws:s3:::healthcare-appointments-data"
+      - sid: "AllowCloudWatchLogging"
+        effect: "Allow"
+        principal: "arn:aws:iam::cloudwatch_account_id:root"
+        action:
+          - "s3:PutObject"
+        resource: "arn:aws:s3:::healthcare-appointments-data/logs/*"
+  iam_roles:
+    data_access_role:
+      role_name: "S3DataAccessRole"
+      permissions:
+        - s3:GetObject
+        - s3:PutObject
+        - s3:ListBucket
+
+# Usage Notes
+# - This YAML file is for documentation purposes to organize bucket settings.
+# - Use IAM and S3 Console for actual setup or convert this into IaC scripts if needed.
